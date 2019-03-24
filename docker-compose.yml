@@ -1,0 +1,53 @@
+version: '3.5'
+services:
+ nginx:
+  container_name: nginx
+  image: "nginx:mainline-alpine"
+  restart: always
+  ports:
+   - "80:80"
+   - "443:443"
+  volumes:
+   - ./nginx.conf:/etc/nginx/nginx.conf:ro
+   - ./sites-enabled/:/etc/nginx/sites-enabled/:ro
+   - ./letsencrypt/:/etc/letsencrypt/:ro
+   - ./www/:/var/www/letsencrypt/:ro
+  networks:
+     nginx_net: 
+      ipv4_address: 172.23.161.2
+  extra_hosts:
+  - "nginx:172.23.161.2"
+  - "app:172.23.161.10"
+  - "http:172.23.161.20"
+
+ certbot-cloud:
+  container_name: certbot-http
+  image: "certbot/certbot:latest"
+  restart: "no"
+  depends_on:
+   - nginx
+  command: certonly --webroot --webroot-path /var/www/letsencrypt --email certs@domain.tld --agree-tos --rsa-key-size 4096 --noninteractive -d http.domain.tld
+  volumes:
+   - ./letsencrypt/:/etc/letsencrypt/:rw
+   - ./www/:/var/www/letsencrypt/:rw
+
+ certbot-app:
+  container_name: certbot-app
+  image: "certbot/certbot:latest"
+  restart: "no"
+  depends_on:
+   - nginx
+  command: certonly --webroot --webroot-path /var/www/letsencrypt --email certs@domain.tld --agree-tos --rsa-key-size 4096 --noninteractive -d app.domain.tld
+  volumes:
+   - ./letsencrypt/:/etc/letsencrypt/:rw
+   - ./www/:/var/www/letsencrypt/:rw
+
+networks:
+ nginx_net:
+  driver: bridge
+  ipam:
+   driver: "default"
+   config:
+    -
+     subnet: 172.23.161.0/24
+
